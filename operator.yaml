@@ -13,9 +13,18 @@ pub: false
 deploymentType: local
 
 # What the pipeline editor offers as inputs. "name" has to match a selector arg in
-# op.py — the two together are how a message reaches infer().
+# op.py — the two together are how a message reaches infer(). The main meter is the
+# real-time load signal; the EV socket phases and outdoor temperature are covariates.
 inputs:
-  - name: value
+  - name: main_kwh
+    type: float
+  - name: ev_a
+    type: float
+  - name: ev_b
+    type: float
+  - name: ev_c
+    type: float
+  - name: temp_c
     type: float
 
 # What the operator emits. These are the keys of the dictionary infer() returns.
