@@ -7,7 +7,6 @@ state that infer() keeps.
 
 Per bucket:
   main_kwh  the last reading of the factored main-meter energy counter (kWh)
-  ev_w      the mean EV socket power, summed over its three phases (W)
   temp_c    the last outdoor temperature reading, forward-filled (degC)
   target_w  the mean compressor sub-meter power (W), training only
 """
@@ -26,8 +25,6 @@ FEATURES = [
     "main_w_lag4",
     "main_w_roll4",
     "main_w_day",
-    "ev_w",
-    "ev_w_lag1",
     "temp_c",
     "hour",
     "weekday",
@@ -37,9 +34,8 @@ FEATURES = [
 def bucketize(frame, kind):
     """Reduce one topic's rows to one value per 15-minute bucket.
 
-    kind is "main", "ev", "weather" or "target". Within a bucket, the main
-    counter takes its last reading, the EV total and the target take their
-    mean, and the temperature takes its last reading.
+    kind is "main", "weather" or "target". Within a bucket, the main counter and
+    the temperature take their last reading, and the target takes its mean.
     """
     df = frame.copy()
     times = pd.to_datetime(df["time"])
@@ -52,11 +48,6 @@ def bucketize(frame, kind):
     if kind == "main":
         series = pd.to_numeric(df["main_kwh"], errors="coerce").groupby(bucket).last()
         name = "main_kwh"
-    elif kind == "ev":
-        phases = df[["ev_a", "ev_b", "ev_c"]].apply(pd.to_numeric, errors="coerce")
-        total = phases.sum(axis=1, min_count=3)
-        series = total.groupby(bucket).mean()
-        name = "ev_w"
     elif kind == "weather":
         series = pd.to_numeric(df["temp_c"], errors="coerce").groupby(bucket).last()
         name = "temp_c"
@@ -76,7 +67,7 @@ def bucket_table(parts):
 
 
 def feature_frame(table):
-    """Causal features from a bucket table with main_kwh, ev_w and temp_c.
+    """Causal features from a bucket table with main_kwh and temp_c.
 
     Every feature at bucket k uses buckets at or before k only. The table
     must sit on a regular grid; a bucket with no data is NaN.
@@ -84,7 +75,6 @@ def feature_frame(table):
     index = table.index
     temp = table["temp_c"].ffill()
     main_w = table["main_kwh"].diff() * (1000.0 / HOURS_PER_BUCKET)
-    ev = table["ev_w"]
 
     f = pd.DataFrame(index=index)
     f["main_w"] = main_w
@@ -93,8 +83,6 @@ def feature_frame(table):
     f["main_w_lag4"] = main_w.shift(4)
     f["main_w_roll4"] = main_w.rolling(4, min_periods=2).mean()
     f["main_w_day"] = main_w.shift(96)
-    f["ev_w"] = ev
-    f["ev_w_lag1"] = ev.shift(1)
     f["temp_c"] = temp
     f["hour"] = index.hour + index.minute / 60.0
     f["weekday"] = index.dayofweek

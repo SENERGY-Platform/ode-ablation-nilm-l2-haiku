@@ -65,8 +65,6 @@ def _bucket(dataset):
     columns = set(frame.columns)
     if "main_kwh" in columns:
         kind = "main"
-    elif "ev_a" in columns:
-        kind = "ev"
     elif "temp_c" in columns:
         kind = "weather"
     elif "target_w" in columns:
